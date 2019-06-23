@@ -6,6 +6,42 @@ Created on Sat Jun 22 18:06:27 2019
 @author: nolanesser
 """
 
+# Import the stuff that'll be needed
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+import re
+from scipy.stats import rankdata
+from collections import Counter
+from nltk.corpus import stopwords
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
+from keras.models import Sequential
+from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import PCA
+from sklearn.decomposition import TruncatedSVD
+from sklearn.manifold import TSNE
+from keras.utils.np_utils import to_categorical
+from keras.callbacks import EarlyStopping
+from keras.layers import Dropout
+
+
+# Import the hand-classified data
+qs = pd.read_csv("data/questions_Reclassified.csv", engine = 'python')
+
+####################
+## Preprocessing  ##
+####################
+
+
+# Remove Incomplete questions and Trash questions
+qs = qs[qs['IncompFlg'] != 1]
+qs = qs[qs['Class'] != "Trash"]
+
 #Look at SVD to see if we see some clustering on regular tdf
 
 vec = CountVectorizer()
