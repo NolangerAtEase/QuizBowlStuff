@@ -137,8 +137,8 @@ def plot_history(history):
 plot_history(history)
 
 #Save model with pickle
-filename = "NeuralNetworks/LSTM_model.sav"
-pickle.dump(history, open(filename, 'wb'))
+#filename = "NeuralNetworks/LSTM_model.sav"
+#pickle.dump(history, open(filename, 'wb'))
 
 
 new_q = ['In this film, a shot of a man yelling “I could strangle her” dissolves to a shot of another character admiring his just-manicured hands, which are posed as if strangling an invisible neck. A character in this film gets carried away while demonstrating a murder method on Mrs. Cunningham and nearly kills her for real. This film’s climax takes place on an out-of-control (*) carousel at an amusement park where the villain had earlier killed Miriam, a murder that is shown in the reflection in a pair of glasses. A scene in this film cross-cuts between a tennis match and shots of the villain trying to retrieve a lighter inscribed “A to G.” For 10 points, name this Hitchcock film in which Bruno Anthony tries to convince Guy Haines to “swap murders” after they meet on the title conveyance.']
