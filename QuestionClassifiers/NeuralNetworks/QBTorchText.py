@@ -130,82 +130,143 @@ train_it, test_it = data.BucketIterator.splits((train_ds, test_ds), batch_size =
 
 
 
+# Hyperparameters for LSTM
+num_epochs = 25
+learning_rate = 0.001
+
+input_dim = len(txt.vocab)
+embedding_dim = 300
+hidden_dim = 256
+output_dim = 9
+n_layers = 2
+bidirectional = True
+dropout = 0.2
+pad_idx = txt.vocab.stoi[txt.pad_token]
+
+
+
+class LSTM_net(nn.Module):
+    def __init__(self, vocab_size, embed_dim, hid_dim, out_dim, num_layers, bidirectional, drop, pad_index):
+        super().__init__()
+        
+        self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx = pad_index)
+        
+        self.rnn = nn.LSTM(embed_dim, hid_dim, num_layers=num_layers, bidirectional = bidirectional, dropout = dropout)
+        
+        self.fc1 = nn.Linear(hid_dim*2, hid_dim)
+        self.fc2 = nn.Linear(hid_dim, 9)
+        self.dropout = nn.Dropout(drop)
+        
+    def forward (self, text, text_lengths):
+        
+        embedded = self.embedding(text)
+        
+        packed_embedded = nn.utils.rnn.pack_padded_sequence(embedded, text_lengths)
+        
+        packed_output, (hidden, cell) = self.rnn(packed_embedded)
+
+
+        hidden = self.dropout(torch.cat((hidden[-2,:,:], hidden[-1,:,:]), dim = 1))
+        output = self.fc1(hidden)
+        output = self.dropout(self.fc2(output))
+        
+        return output
+
+
+
+model = LSTM_net(input_dim, embedding_dim, hidden_dim, output_dim, n_layers, bidirectional,
+                 dropout, pad_idx)
 
 
 
 
 
 
+pretrained_embeddings = txt.vocab.vectors
+
+print(pretrained_embeddings.shape)
+model.embedding.weight.data.copy_(pretrained_embeddings)
+
+
+model.embedding.weight.data[pad_idx] = torch.zeros(embedding_dim)
+print(model.embedding.weight.data)
+
+
+model.to(device)
+
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr = learning_rate)#, weight_decay = 0.0001)
+
+def accuracy(preds, y):
+    
+    #predicted = torch.max(preds, 1)
+    _, predicted = torch.max(preds, 1)
+    #print("input prediction" + preds)
+    #print(y)
+    #print(predicted)
+    #print(predicted.shape)
+    #print(predicted == y)
+    
+    correct = (predicted == y)
+    acc = correct.sum()/ len(correct)
+    return acc
 
 
 
 
+#Training function
+def train(model, iterator):
+    epoch_loss = 0
+    epoch_acc = 0
+    
+    model.train()
+    
+    for batch in iterator:
+        text, text_lengths = batch.text
+        
+        optimizer.zero_grad()
+        predictions = model(text, text_lengths).squeeze(1)
+        loss = criterion(predictions, batch.label)
+        acc = accuracy(predictions, batch.label)
+        
+        loss.backward()
+        optimizer.step()
+        
+        epoch_loss += loss.item()
+        epoch_acc += acc.item()
+        
+    return epoch_loss/len(iterator), epoch_acc/ len(iterator)
 
 
-#qbSmall.to_csv('qbTextAndLabels.csv')
-
-tokenize = lambda x: x.split()
-txt = data.Field(sequential=True, tokenize=tokenize, lower=True)
-lab = data.Field(sequential = False, use_vocab = True)
-
-
-qbtab = data.TabularDataset('qbTextAndLabels.csv', format= 'csv', fields = 
-                            [('id', data.Field()),
-                             ('Class', data.Field()),
-                             ('CleanText', data.Field())])
-
-
-train, test = data.TabularDataset.split(qbtab)
-
-
-txt.build_vocab(train)
+def evaluate(model, iterator):
+    epoch_acc = 0
+    model.eval()
+    
+    with torch.no_grad():
+        for batch in iterator():
+            text, text_lengths = batch.text
+            predictions = model(text, text_lengths).squeeze(1)
+            acc = accuracy(predictions, batch.labe)
+            
+            epoch_acc += acc.item()
+            
+    return epoch_acc/ len(iterator)
 
 
-train['CleanText'].build_vocab()
+t = time.time()
+loss = []
+acc = []
+test_acc = []
 
+for epoch in range(num_epochs):
+    train_loss, train_acc = train(model, train_it)
+    testing_acc = evaluate(model, test_it)
+    
+    print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}%')
+    print(f'\t Test Acc: {testing_acc*100:.2f}%')
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#Test/Train split
-X = qb['Text']
-y = qb['Class']
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = seed, test_size = 0.2)
-
-print(len(X_train), len(X_test), len(y_train), len(y_test))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    loss.append(train_loss)
+    acc.append(train_acc)
+    test_acc.append(testing_acc)
+    
+print(f'time:{time.time()-t:.3f}')
